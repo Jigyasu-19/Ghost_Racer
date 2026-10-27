@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/contracts" },
+    { "path": "packages/content" },
+    { "path": "packages/game-core" },
+    { "path": "apps/web" },
+    { "path": "apps/server" }
+  ]
+}

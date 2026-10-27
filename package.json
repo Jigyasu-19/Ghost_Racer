@@ -1,0 +1,24 @@
+{
+  "name": "ghost-racer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/web",
+    "apps/server",
+    "packages/game-core",
+    "packages/contracts",
+    "packages/content"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail \"npm run dev --workspace=@ghost-racer/server\" \"npm run dev --workspace=@ghost-racer/web\"",
+    "dev:server": "npm run dev --workspace=apps/server",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc --build",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.0"
+  }
+}

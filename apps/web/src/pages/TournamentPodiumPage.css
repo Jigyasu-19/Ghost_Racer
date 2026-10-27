@@ -1,0 +1,25 @@
+.tournament-podium-page { width: 100%; max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-7); }
+.podium-heading { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.podium-heading h1 { font-size: 2.25rem; line-height: 1.1; }
+.podium-heading > p:last-child { color: var(--text-secondary); }
+.podium-layout { display: flex; justify-content: center; align-items: end; gap: var(--space-4); min-height: 300px; padding: var(--space-6) var(--space-4) 0; border-bottom: 1px solid var(--border-default); }
+.podium-place { flex: 1; max-width: 230px; min-width: 0; text-align: center; padding: var(--space-5) var(--space-3) 0; background: var(--bg-surface); border: 1px solid var(--border-default); border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.podium-place-1 { order: 2; border-color: var(--accent-lime); }
+.podium-place-2 { order: 1; }
+.podium-place-3 { order: 3; }
+.podium-rank { color: var(--accent-lime); font: 500 .85rem var(--font-mono); }
+.podium-place h2 { margin-top: var(--space-2); overflow-wrap: anywhere; font-size: 1.2rem; }
+.podium-car { margin-top: var(--space-1); color: var(--text-secondary); }
+.podium-step { display: grid; place-items: center; margin-top: var(--space-5); background: var(--bg-elevated); color: var(--text-primary); font: 700 1.7rem var(--font-mono); }
+.podium-place-1 .podium-step { height: 120px; color: var(--accent-lime); }
+.podium-place-2 .podium-step { height: 82px; }
+.podium-place-3 .podium-step { height: 58px; }
+.podium-other-finishers { display: flex; flex-direction: column; gap: var(--space-3); }
+.podium-other-finishers h2 { font-size: 1.1rem; }
+.podium-other-finishers ol { list-style: none; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 0 var(--space-4); }
+.podium-other-finishers li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) 0; border-bottom: 1px solid var(--border-default); }
+.podium-other-finishers li:last-child { border-bottom: 0; }
+.podium-other-finishers li span:last-child { color: var(--text-secondary); }
+.podium-empty-state { padding: var(--space-7); color: var(--text-secondary); text-align: center; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.podium-menu-button { align-self: center; }
+@media (max-width: 580px) { .podium-layout { gap: var(--space-2); padding-inline: 0; } .podium-place { padding-inline: var(--space-2); } .podium-place h2 { font-size: 1rem; } .podium-car { font-size: .85rem; } }

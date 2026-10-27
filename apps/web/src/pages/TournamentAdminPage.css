@@ -1,0 +1,29 @@
+.tournament-admin-page { width: 100%; display: flex; flex-direction: column; gap: var(--space-7); }
+.tournament-admin-heading { display: flex; flex-direction: column; gap: var(--space-2); }
+.tournament-admin-heading h1 { font-size: 2rem; line-height: 1.15; }
+.tournament-admin-heading > p:last-child { color: var(--text-secondary); }
+.tournament-admin-create { display: flex; justify-content: space-between; align-items: end; gap: var(--space-5); padding: var(--space-6); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.tournament-admin-create > div { display: flex; flex-direction: column; gap: var(--space-3); width: min(100%, 420px); }
+.tournament-admin-create h2, .tournament-admin-list-section h2 { font-size: 1.2rem; }
+.tournament-admin-create label { color: var(--text-secondary); font-size: .9rem; }
+.tournament-admin-create select { width: 100%; padding: var(--space-3); background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
+.tournament-admin-create .btn:disabled { cursor: not-allowed; opacity: .45; }
+.tournament-share-card { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-6); background: var(--bg-surface); border: 1px solid var(--accent-primary); border-radius: var(--radius-md); }
+.tournament-share-card h2 { margin: var(--space-1) 0; font-size: 1.25rem; }
+.tournament-share-card > div > p:last-child { color: var(--text-secondary); }
+.tournament-share-card code { max-width: 100%; overflow-wrap: anywhere; padding: var(--space-2) var(--space-3); background: var(--bg-elevated); border-radius: var(--radius-sm); color: var(--text-secondary); }
+.tournament-admin-list-section { display: flex; flex-direction: column; gap: var(--space-4); }
+.tournament-admin-section-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); }
+.admin-tournament-list { display: grid; gap: var(--space-4); }
+.admin-tournament-card { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.admin-tournament-card-heading { display: flex; justify-content: space-between; gap: var(--space-4); align-items: flex-start; }
+.admin-tournament-card-heading h3 { font-size: 1.1rem; }
+.admin-tournament-card-heading p, .admin-tournament-card > p { color: var(--text-secondary); font-size: .9rem; }
+.admin-tournament-card-actions { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+.admin-tournament-card-actions > span { color: var(--text-secondary); }
+.admin-result-list { list-style: none; border-top: 1px solid var(--border-default); }
+.admin-result-list li { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-default); }
+.admin-result-list li:last-child { border-bottom: 0; }
+.admin-result-list li span:last-child { color: var(--text-secondary); }
+.admin-empty { color: var(--text-muted); padding: var(--space-5); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+@media (max-width: 600px) { .tournament-admin-create { align-items: stretch; flex-direction: column; } .tournament-admin-create .btn { align-self: flex-start; } }

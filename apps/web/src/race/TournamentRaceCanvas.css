@@ -1,0 +1,2 @@
+.tournament-race-canvas { width: 100%; min-height: 500px; height: min(68vh, 720px); overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-base); }
+@media (max-width: 600px) { .tournament-race-canvas { min-height: 380px; height: 58vh; } }

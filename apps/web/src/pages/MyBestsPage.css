@@ -1,0 +1,13 @@
+.my-bests-page { width: 100%; flex: 1; display: flex; flex-direction: column; gap: var(--space-5); }
+.my-bests-page > header { display: grid; gap: var(--space-2); }
+.my-bests-page h1 { font-size: 2rem; }
+.my-bests-page > header > p:last-child { color: var(--text-secondary); }
+.my-bests-message { color: var(--text-secondary); padding: var(--space-5); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.my-bests-error { color: var(--state-error); }
+.my-bests-list { display: grid; gap: var(--space-3); }
+.my-best-card { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: var(--space-4); padding: var(--space-4); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.my-best-card > div { display: grid; gap: var(--space-1); }
+.my-best-card span { color: var(--text-muted); font: 500 .65rem var(--font-mono); letter-spacing: .08em; }
+.my-best-card strong { color: var(--text-primary); }
+.my-best-time strong { display: flex; align-items: center; gap: var(--space-2); color: var(--accent-lime); font: 500 1rem var(--font-mono); }
+@media(max-width: 640px) { .my-best-card { grid-template-columns: 1fr 1fr; }.my-best-time { grid-column: 1 / -1; } }
