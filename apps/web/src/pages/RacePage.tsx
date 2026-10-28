@@ -34,6 +34,7 @@ export function RacePage() {
   const time = (hud.tick / 60).toFixed(2);
   const needsTutorial = user?.tutorialCompleted === false;
   const selectedBest = personalBests.find((run) => run.trackId === selectedTrackId && run.carId === selectedCarId);
+  const outdatedBest = selectedBest?.outdated === true;
 
   useEffect(() => {
     if (!user || needsTutorial || activeRace !== null) return;
@@ -117,7 +118,8 @@ export function RacePage() {
       <div className="selection-section"><h2>Cars</h2><div className="selection-grid">{CARS.map((car) => <button key={car.id} className={`selection-card ${selectedCarId === car.id ? 'selected' : ''}`} onClick={() => { setSelectedCarId(car.id); setSelectedGhost(null); }}><strong>{car.name}</strong><span>{car.description}</span><small>ACC {car.acceleration.toFixed(1)} · TOP {car.topSpeed.toFixed(1)} · HAND {car.handling.toFixed(1)} · OFF-TRACK {car.offTrackPenaltyFactor.toFixed(2)}×</small></button>)}</div></div>
       <fieldset className="ghost-selection"><legend>Race against a ghost</legend>
         <label><input type="radio" name="race-ghost" checked={selectedGhost === null} onChange={() => setSelectedGhost(null)} /><span>Race alone</span></label>
-        {selectedBest && <label><input type="radio" name="race-ghost" checked={selectedGhost?.runId === selectedBest.runId && selectedGhost.appearance === 'personal'} onChange={() => setSelectedGhost({ runId: selectedBest.runId, appearance: 'personal' })} /><span>Your best · {selectedBest.verifiedFinishTime.toFixed(2)}s</span></label>}
+        {selectedBest && outdatedBest && <p className="ghost-selection-message">Your saved best used older race rules and can't be used as a ghost. Finish a run to replace it.</p>}
+        {selectedBest && !outdatedBest && <label><input type="radio" name="race-ghost" checked={selectedGhost?.runId === selectedBest.runId && selectedGhost.appearance === 'personal'} onChange={() => setSelectedGhost({ runId: selectedBest.runId, appearance: 'personal' })} /><span>Your best · {selectedBest.verifiedFinishTime.toFixed(2)}s</span></label>}
         {publicGhostsLoading && <p className="ghost-selection-message">Loading top 10 ghosts…</p>}
         {publicGhostsError && <p className="tutorial-save-error" role="alert">{publicGhostsError}</p>}
         {publicGhosts.map((ghost) => <label key={ghost.runId}><input type="radio" name="race-ghost" checked={selectedGhost?.runId === ghost.runId && selectedGhost.appearance === 'public'} onChange={() => setSelectedGhost({ runId: ghost.runId, appearance: 'public' })} /><span>#{ghost.rank} · {ghost.username} · {ghost.time.toFixed(2)}s</span></label>)}

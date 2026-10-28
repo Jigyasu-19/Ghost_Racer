@@ -40,7 +40,7 @@ export function NavBar() {
           </NavLink>
         </li>
         {user && <li><NavLink to="/tournaments" className={navLinkClass}><Users size={16} /> Tournament</NavLink></li>}
-        {user?.role === 'admin' && <li><NavLink to="/admin/tournaments" className={navLinkClass}><Trophy size={16} /> Manage tournaments</NavLink></li>}
+        {user && <li><NavLink to="/tournaments/host" className={navLinkClass}><Trophy size={16} /> Host tournaments</NavLink></li>}
       </ul>
       {user ? <div className="nav-account"><span>{user.username}</span><button className="nav-logout" onClick={() => void handleLogout()}><LogOut size={16} /> Log out</button></div> : <NavLink to="/sign-in" className={navLinkClass}>Sign in</NavLink>}
     </nav>

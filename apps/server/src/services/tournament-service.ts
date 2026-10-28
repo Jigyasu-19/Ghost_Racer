@@ -1,8 +1,8 @@
 import { getTrack } from '@ghost-racer/content';
-import { TournamentAdminHistorySchema } from '@ghost-racer/contracts';
+import { TournamentHostHistorySchema } from '@ghost-racer/contracts';
 import { HttpError } from '../http/errors.js';
 import { createTournamentRecord, findTournament, listHostTournamentIds, removeHostTournamentIndexEntry, serializeTournamentStatus, type StoredTournament } from '../persistence/tournament-repository.js';
-import { findCompletedTournamentResults } from '../persistence/tournament-result-repository.js';
+import { findCompletedTournamentResults, findTournamentResultForParticipant } from '../persistence/tournament-result-repository.js';
 
 function redisUnavailable(): HttpError {
   return new HttpError(503, 'REDIS_UNAVAILABLE', 'Tournament storage is temporarily unavailable.');
@@ -34,7 +34,14 @@ export async function getTournamentStatus(id: string, requesterUserId: string) {
   return serializeTournamentStatus(tournament);
 }
 
-export async function getAdminTournamentHistory(hostUserId: string) {
+export async function getTournamentResult(id: string, requesterUserId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'TOURNAMENT_RESULT_NOT_FOUND', 'The tournament result was not found.');
+  const result = await findTournamentResultForParticipant(id, requesterUserId);
+  if (result === null) throw new HttpError(404, 'TOURNAMENT_RESULT_NOT_FOUND', 'The tournament result was not found.');
+  return result;
+}
+
+export async function getTournamentHostHistory(hostUserId: string) {
   let ids: string[];
   let activeRecords: StoredTournament[];
   try {
@@ -49,11 +56,11 @@ export async function getAdminTournamentHistory(hostUserId: string) {
       activeRecords.push(tournament);
     }
   } catch (error: unknown) {
-    console.error('Could not read admin tournament lobbies from Redis.', error);
+    console.error('Could not read tournament lobbies from Redis.', error);
     throw redisUnavailable();
   }
   const completed = await findCompletedTournamentResults(hostUserId);
-  const parsed = TournamentAdminHistorySchema.safeParse({
+  const parsed = TournamentHostHistorySchema.safeParse({
     active: activeRecords.map((tournament) => ({
       id: tournament.id, trackId: tournament.trackId, status: tournament.status,
       joinCode: tournament.joinCode, createdAt: tournament.createdAt, expiresAt: tournament.expiresAt,

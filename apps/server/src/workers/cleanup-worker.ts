@@ -1,8 +1,9 @@
 import { replayStorage } from '../persistence/replay-storage.js';
-import { listReferencedReplayKeys } from '../persistence/run-repository.js';
+import { deleteOutdatedBestRuns, listReferencedReplayKeys } from '../persistence/run-repository.js';
 
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 const ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1_000;
+const OUTDATED_RECORD_GRACE_MS = 30 * 24 * 60 * 60 * 1_000;
 let cleanupTimer: NodeJS.Timeout | undefined;
 let cleanupRunning = false;
 
@@ -10,6 +11,9 @@ export async function runCleanupCycle(now = Date.now()): Promise<void> {
   if (cleanupRunning) return;
   cleanupRunning = true;
   try {
+    for (const key of await deleteOutdatedBestRuns(new Date(now - OUTDATED_RECORD_GRACE_MS))) {
+      await replayStorage.delete(key).catch((error: unknown) => console.error('Could not remove an outdated replay object; a later cleanup cycle will retry.', error));
+    }
     const [objects, referencedKeys] = await Promise.all([replayStorage.list(), listReferencedReplayKeys()]);
     const cutoff = now - ORPHAN_MIN_AGE_MS;
     for (const object of objects) {

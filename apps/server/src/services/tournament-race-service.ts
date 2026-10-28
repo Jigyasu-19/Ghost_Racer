@@ -1,6 +1,6 @@
 import { CONTENT_VERSION, getCar, getTrack } from '@ghost-racer/content';
 import type { CarDefinition, Line, Point, TrackDefinition } from '@ghost-racer/content';
-import { EMPTY_INPUT, SIMULATION_VERSION, TICK_RATE, createRaceState, step, type RaceInput, type RaceState } from '@ghost-racer/game-core';
+import { EMPTY_INPUT, RACE_COUNTDOWN_SECONDS, SIMULATION_VERSION, TICK_RATE, createRaceState, step, type RaceInput, type RaceState } from '@ghost-racer/game-core';
 import { TournamentRaceResultSchema, TournamentRaceSnapshotSchema, SocketEvents, type TournamentRaceResult, type TournamentRaceSnapshot } from '@ghost-racer/contracts';
 import { Server } from 'socket.io';
 import { cleanupTournament, findTournament, type StoredTournament } from '../persistence/tournament-repository.js';
@@ -8,6 +8,10 @@ import { saveTournamentResult } from '../persistence/tournament-result-repositor
 
 const MAX_INPUT_LEAD_TICKS = 12;
 const TICK_INTERVAL_MS = 1_000 / TICK_RATE;
+// A racer whose client sends no input for this long is treated as disconnected and marked did-not-finish.
+const INPUT_SILENCE_LIMIT_MS = 15_000;
+// Once the first racer finishes, everyone else has this long to finish before the race is closed.
+const FINISH_WINDOW_TICKS = 30 * TICK_RATE;
 
 interface TournamentRacer {
   userId: string;
@@ -16,6 +20,7 @@ interface TournamentRacer {
   car: CarDefinition;
   state: RaceState;
   inputs: Map<number, RaceInput>;
+  lastInputAt: number;
   finishProgress?: number;
 }
 
@@ -24,6 +29,7 @@ interface RaceSession {
   track: TrackDefinition;
   racers: TournamentRacer[];
   tick: number;
+  firstFinishTick?: number;
   timer?: NodeJS.Timeout;
   lastTickAt: number;
   finalizing: boolean;
@@ -122,14 +128,21 @@ async function persistAndCleanup(io: Server, session: RaceSession): Promise<void
 function stepRace(io: Server, session: RaceSession): void {
   if (session.finalizing) return;
   session.tick++;
+  const now = performance.now();
+  const finishWindowClosed = session.firstFinishTick !== undefined && session.tick - session.firstFinishTick >= FINISH_WINDOW_TICKS;
   for (const racer of session.racers) {
     if (racer.state.raceComplete || racer.state.timeout) continue;
+    if (finishWindowClosed || now - racer.lastInputAt > INPUT_SILENCE_LIMIT_MS) {
+      racer.state = { ...racer.state, timeout: true };
+      continue;
+    }
     const previous = racer.state.position;
     const input = racer.inputs.get(session.tick) ?? EMPTY_INPUT;
     racer.inputs.delete(session.tick);
     for (const queuedTick of racer.inputs.keys()) if (queuedTick < session.tick) racer.inputs.delete(queuedTick);
     racer.state = step(racer.state, input, session.track, racer.car);
     if (racer.state.raceComplete) {
+      session.firstFinishTick ??= session.tick;
       racer.finishProgress = distancePastFinish(previous, racer.state, session.track.finishLine);
       io.to(session.lobby.id).emit(SocketEvents.RACE_FINISH, { lobbyId: session.lobby.id, username: racer.username, finishTick: racer.state.finishTick! });
     }
@@ -153,18 +166,23 @@ export async function startTournamentRace(io: Server, lobbyId: string): Promise<
   const racers = lobby.players.map((player) => {
     const car = getCar(player.carId);
     if (!car) throw new Error('Tournament car is unavailable.');
-    return { userId: player.userId, username: player.username, carId: car.id, car, state: createRaceState(track), inputs: new Map<number, RaceInput>() };
+    return { userId: player.userId, username: player.username, carId: car.id, car, state: createRaceState(track), inputs: new Map<number, RaceInput>(), lastInputAt: performance.now() };
   });
   const session: RaceSession = { lobby, track, racers, tick: 0, lastTickAt: performance.now(), finalizing: false, cleanupAttempts: 0, persistenceRetryMs: 1_000 };
-  session.timer = setInterval(() => {
-    const now = performance.now();
-    let catchupSteps = 0;
-    while (now - session.lastTickAt >= TICK_INTERVAL_MS && catchupSteps < 6 && !session.finalizing) {
-      session.lastTickAt += TICK_INTERVAL_MS;
-      stepRace(io, session);
-      catchupSteps++;
-    }
-  }, 5);
+  setTimeout(() => {
+    if (session.finalizing) return;
+    session.lastTickAt = performance.now();
+    for (const racer of session.racers) racer.lastInputAt = session.lastTickAt;
+    session.timer = setInterval(() => {
+      const now = performance.now();
+      let catchupSteps = 0;
+      while (now - session.lastTickAt >= TICK_INTERVAL_MS && catchupSteps < 6 && !session.finalizing) {
+        session.lastTickAt += TICK_INTERVAL_MS;
+        stepRace(io, session);
+        catchupSteps++;
+      }
+    }, 5);
+  }, RACE_COUNTDOWN_SECONDS * 1000);
   activeRaces.set(lobbyId, session);
   io.to(lobbyId).emit(SocketEvents.RACE_SNAPSHOT, snapshot(session));
 }
@@ -173,6 +191,7 @@ export function queueTournamentInput(lobbyId: string, userId: string, tick: numb
   const session = activeRaces.get(lobbyId);
   if (!session || session.finalizing) return false;
   const racer = session.racers.find((candidate) => candidate.userId === userId);
+  if (racer) racer.lastInputAt = performance.now();
   if (!racer || racer.state.raceComplete || racer.state.timeout || tick <= session.tick || tick > session.tick + MAX_INPUT_LEAD_TICKS) return false;
   if (!racer.inputs.has(tick)) racer.inputs.set(tick, input);
   return true;

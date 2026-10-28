@@ -50,27 +50,36 @@ export async function saveTournamentResult(result: TournamentRaceResult, userIds
   await (await results()).updateOne({ _id: result.tournamentId }, { $setOnInsert: document }, { upsert: true });
 }
 
+function toResult(document: TournamentResultDocument): TournamentRaceResult {
+  const parsed = TournamentRaceResultSchema.safeParse({
+    tournamentId: document.tournamentId,
+    trackId: document.trackId,
+    completedAt: document.completedAt.toISOString(),
+    simulationVersion: document.simulationVersion,
+    contentVersion: document.contentVersion,
+    players: document.players.map((player) => ({
+      username: player.username,
+      carId: player.carId,
+      placement: player.placement,
+      ...(player.finishTick === undefined ? {} : { finishTick: player.finishTick }),
+      ...(player.finishTimeSeconds === undefined ? {} : { finishTimeSeconds: player.finishTimeSeconds }),
+      timeout: player.timeout,
+      checkpointIndex: player.checkpointIndex,
+    })),
+  });
+  if (!parsed.success) throw new Error('Stored tournament result failed validation.');
+  return parsed.data;
+}
+
 export async function findCompletedTournamentResults(hostUserId: string): Promise<TournamentRaceResult[]> {
   if (!ObjectId.isValid(hostUserId)) return [];
   const documents = await (await results()).find({ hostUserId: new ObjectId(hostUserId) }).sort({ completedAt: -1 }).toArray();
-  return documents.map((document) => {
-    const parsed = TournamentRaceResultSchema.safeParse({
-      tournamentId: document.tournamentId,
-      trackId: document.trackId,
-      completedAt: document.completedAt.toISOString(),
-      simulationVersion: document.simulationVersion,
-      contentVersion: document.contentVersion,
-      players: document.players.map((player) => ({
-        username: player.username,
-        carId: player.carId,
-        placement: player.placement,
-        ...(player.finishTick === undefined ? {} : { finishTick: player.finishTick }),
-        ...(player.finishTimeSeconds === undefined ? {} : { finishTimeSeconds: player.finishTimeSeconds }),
-        timeout: player.timeout,
-        checkpointIndex: player.checkpointIndex,
-      })),
-    });
-    if (!parsed.success) throw new Error('Stored tournament result failed validation.');
-    return parsed.data;
-  });
+  return documents.map(toResult);
+}
+
+export async function findTournamentResultForParticipant(tournamentId: string, userId: string): Promise<TournamentRaceResult | null> {
+  if (!ObjectId.isValid(userId)) return null;
+  const id = new ObjectId(userId);
+  const document = await (await results()).findOne({ _id: tournamentId, $or: [{ hostUserId: id }, { 'players.userId': id }] });
+  return document === null ? null : toResult(document);
 }

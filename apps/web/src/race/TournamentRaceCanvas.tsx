@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { CARS, TRACKS } from '@ghost-racer/content';
-import type { RaceInput } from '@ghost-racer/game-core';
+import { RACE_COUNTDOWN_SECONDS, type RaceInput } from '@ghost-racer/game-core';
 import { TournamentRaceSnapshotSchema, type TournamentRaceSnapshot } from '@ghost-racer/contracts';
+import { CountdownOverlay, drawTrack, fitTrackCamera, playCheckpointEffect } from './track-renderer';
 import './TournamentRaceCanvas.css';
 
 interface TournamentRaceCanvasProps {
@@ -19,17 +20,22 @@ interface PlayerSprite { body: Phaser.GameObjects.Container; label: Phaser.GameO
 class TournamentRaceScene extends Phaser.Scene {
   private latest?: TournamentRaceSnapshot;
   private accumulator = 0;
+  private countdown?: CountdownOverlay;
+  private countdownStartedAt?: number;
+  private goShown = false;
+  private readonly checkpoints = new Map<string, number>();
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private readonly sprites = new Map<string, PlayerSprite>();
   private readonly palette = {
-    surface: 0, border: 0, muted: 0, lime: 0, text: 0,
+    base: 0, surface: 0, border: 0, muted: 0, lime: 0, text: 0,
   };
   constructor(private readonly track: (typeof TRACKS)[number], private readonly onInput: (input: RaceInput) => void, private readonly isFinished: () => boolean) {
     super('TournamentRaceScene');
   }
 
   create(): void {
+    this.palette.base = toNumber(readColor('--bg-base'));
     this.palette.surface = toNumber(readColor('--bg-surface'));
     this.palette.border = toNumber(readColor('--border-default'));
     this.palette.muted = toNumber(readColor('--text-muted'));
@@ -37,26 +43,28 @@ class TournamentRaceScene extends Phaser.Scene {
     this.palette.text = toNumber(readColor('--text-primary'));
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
-    const graphics = this.add.graphics();
-    graphics.fillStyle(this.palette.surface, 1);
-    graphics.fillPoints(this.track.boundary.map((point) => new Phaser.Math.Vector2(point.x, point.y)), true);
-    graphics.lineStyle(12, this.palette.border, 1);
-    graphics.strokePoints(this.track.boundary.map((point) => new Phaser.Math.Vector2(point.x, point.y)), true);
-    graphics.lineStyle(2, this.palette.muted, .75);
-    for (const checkpoint of this.track.checkpoints) graphics.lineBetween(checkpoint.start.x, checkpoint.start.y, checkpoint.end.x, checkpoint.end.y);
-    graphics.lineStyle(8, this.palette.lime, 1);
-    graphics.lineBetween(this.track.finishLine.start.x, this.track.finishLine.start.y, this.track.finishLine.end.x, this.track.finishLine.end.y);
-    graphics.fillStyle(this.palette.muted, 1);
-    graphics.fillCircle(this.track.start.position.x, this.track.start.position.y, 7);
+    drawTrack(this.add.graphics(), this.track, { road: this.palette.surface, infield: this.palette.base, border: this.palette.border, marker: this.palette.muted, finish: this.palette.lime });
+    this.countdown = new CountdownOverlay(this, this.track, this.palette.lime, this.palette.base);
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.handleResize(this.scale.gameSize);
   }
 
-  setSnapshot(snapshot: TournamentRaceSnapshot): void { this.latest = snapshot; }
+  setSnapshot(snapshot: TournamentRaceSnapshot): void {
+    if (!this.latest && snapshot.tick === 0) this.countdownStartedAt = performance.now();
+    this.latest = snapshot;
+  }
 
   update(_time: number, deltaMs: number): void {
     if (!this.latest) return;
-    if (!this.isFinished()) {
+    const racing = this.latest.tick > 0;
+    if (!racing && this.countdownStartedAt !== undefined) {
+      const remaining = RACE_COUNTDOWN_SECONDS * 1000 - (performance.now() - this.countdownStartedAt);
+      this.countdown?.show(String(Math.min(RACE_COUNTDOWN_SECONDS, Math.max(1, Math.ceil(remaining / 1000)))));
+    } else if (racing && !this.goShown) {
+      this.goShown = true;
+      if (this.countdownStartedAt !== undefined) this.countdown?.finish();
+    }
+    if (racing && !this.isFinished()) {
       this.accumulator += Math.min(deltaMs, 100) / 1000;
       while (this.accumulator >= 1 / 60) {
         this.onInput(this.readInput());
@@ -76,6 +84,9 @@ class TournamentRaceScene extends Phaser.Scene {
         this.sprites.set(player.username, sprite);
       }
       sprite.body.setPosition(player.position.x, player.position.y).setRotation(player.headingRadians + Math.PI / 2);
+      const knownCheckpoint = this.checkpoints.get(player.username) ?? player.checkpointIndex;
+      if (player.checkpointIndex > knownCheckpoint) playCheckpointEffect(this, this.track.checkpoints[knownCheckpoint]!, sprite.body, this.palette.lime);
+      this.checkpoints.set(player.username, player.checkpointIndex);
       sprite.label.setPosition(player.position.x, player.position.y + 31);
     }
   }
@@ -91,8 +102,7 @@ class TournamentRaceScene extends Phaser.Scene {
   }
 
   private handleResize(gameSize: Phaser.Structs.Size): void {
-    const zoom = Math.min(gameSize.width / 1100, gameSize.height / 940);
-    this.cameras.main.setZoom(Math.max(zoom, .25)).centerOn(0, 0);
+    fitTrackCamera(this.cameras.main, gameSize, this.track);
   }
 }
 

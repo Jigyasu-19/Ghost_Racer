@@ -111,6 +111,7 @@ export const PersonalBestSchema = z.object({
   verifiedFinishTime: z.number().positive(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  outdated: z.boolean(),
 }).strict();
 export const MyBestsResponseSchema = z.object({ runs: z.array(PersonalBestSchema) }).strict();
 export type PersonalBest = z.infer<typeof PersonalBestSchema>;
@@ -172,16 +173,16 @@ export const TournamentRaceResultSchema = z.object({
 }).strict();
 export type TournamentRaceSnapshot = z.infer<typeof TournamentRaceSnapshotSchema>;
 export type TournamentRaceResult = z.infer<typeof TournamentRaceResultSchema>;
-export const TournamentAdminActiveSchema = z.object({
+export const TournamentHostActiveSchema = z.object({
   id: z.string().uuid(), trackId: z.string(), status: TournamentStatusSchema,
   joinCode: z.string().regex(/^\d{4,5}$/), createdAt: z.string().datetime(), expiresAt: z.string().datetime(),
   players: z.array(z.object({ username: UsernameSchema, carId: z.string(), ready: z.boolean() }).strict()).min(1).max(6),
 }).strict();
-export const TournamentAdminHistorySchema = z.object({
-  active: z.array(TournamentAdminActiveSchema),
+export const TournamentHostHistorySchema = z.object({
+  active: z.array(TournamentHostActiveSchema),
   completed: z.array(TournamentRaceResultSchema),
 }).strict();
-export type TournamentAdminHistory = z.infer<typeof TournamentAdminHistorySchema>;
+export type TournamentHostHistory = z.infer<typeof TournamentHostHistorySchema>;
 
 // ── Socket event names (typed constants) ─────────────────
 

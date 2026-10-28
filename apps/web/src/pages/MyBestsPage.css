@@ -11,3 +11,5 @@
 .my-best-card strong { color: var(--text-primary); }
 .my-best-time strong { display: flex; align-items: center; gap: var(--space-2); color: var(--accent-lime); font: 500 1rem var(--font-mono); }
 @media(max-width: 640px) { .my-best-card { grid-template-columns: 1fr 1fr; }.my-best-time { grid-column: 1 / -1; } }
+
+.my-best-outdated { grid-column: 1 / -1; margin: 0; color: var(--state-warning); font-size: .8rem; }

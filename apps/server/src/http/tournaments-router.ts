@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { CreateTournamentRequestSchema } from '@ghost-racer/contracts';
 import { getAuthenticatedUser } from '../services/auth-service.js';
-import { createTournament, getAdminTournamentHistory, getTournamentStatus } from '../services/tournament-service.js';
+import { createTournament, getTournamentHostHistory, getTournamentResult, getTournamentStatus } from '../services/tournament-service.js';
 import { readCookie, requireCsrfToken } from './csrf.js';
 import { HttpError, sendError } from './errors.js';
 
@@ -14,10 +14,6 @@ tournamentsRouter.post('/', requireCsrfToken, async (request, response, next) =>
     const user = token === undefined ? null : await getAuthenticatedUser(token);
     if (user === null) {
       sendError(response, 401, 'UNAUTHORIZED', 'Authentication is required.');
-      return;
-    }
-    if (user.role !== 'admin') {
-      sendError(response, 403, 'FORBIDDEN', 'Administrator access is required.');
       return;
     }
     const parsed = CreateTournamentRequestSchema.safeParse(request.body);
@@ -40,11 +36,22 @@ tournamentsRouter.get('/', async (request, response, next) => {
       sendError(response, 401, 'UNAUTHORIZED', 'Authentication is required.');
       return;
     }
-    if (user.role !== 'admin') {
-      sendError(response, 403, 'FORBIDDEN', 'Administrator access is required.');
+    response.json(await getTournamentHostHistory(user.id));
+  } catch (error: unknown) {
+    next(error);
+  }
+});
+
+tournamentsRouter.get('/:id/result', async (request, response, next) => {
+  try {
+    const token = readCookie(request, SESSION_COOKIE_NAME);
+    const user = token === undefined ? null : await getAuthenticatedUser(token);
+    if (user === null) {
+      sendError(response, 401, 'UNAUTHORIZED', 'Authentication is required.');
       return;
     }
-    response.json(await getAdminTournamentHistory(user.id));
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.json({ result: await getTournamentResult(request.params.id ?? '', user.id) });
   } catch (error: unknown) {
     next(error);
   }

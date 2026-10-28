@@ -149,7 +149,7 @@ export function TournamentLobbyPage() {
         <ul className="lobby-player-list">{raceSnapshot.players.map((player) => <li key={player.username}><span className="lobby-player-name">{player.username} · {CARS.find((car) => car.id === player.carId)?.name ?? player.carId}</span><span className={player.raceComplete ? 'ready-indicator is-ready' : 'ready-indicator'}>{player.raceComplete ? `Finished · ${(player.finishTick! / 60).toFixed(2)}s` : player.timeout ? 'Timed out' : `Checkpoint ${player.checkpointIndex}/${TRACKS.find((track) => track.id === raceSnapshot.trackId)?.checkpoints.length ?? 0}`}</span></li>)}</ul>
         {raceResult && <p className="lobby-message" role="status">Results have been stored. The tournament podium will be available in the results screen.</p>}
       </div> : !lobby ? <div className="tournament-entry-grid">
-        {user?.role === 'admin' && <form className="tournament-panel" onSubmit={(event) => void createLobby(event)}>
+        {user && <form className="tournament-panel" onSubmit={(event) => void createLobby(event)}>
           <h2>Host a tournament</h2><label htmlFor="tournament-track">Track</label>
           <select id="tournament-track" value={trackId} onChange={(event) => setTrackId(event.target.value)}>{TRACKS.map((track) => <option key={track.id} value={track.id}>{track.name}</option>)}</select>
           <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create lobby'}</button>

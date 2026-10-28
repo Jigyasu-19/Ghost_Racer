@@ -30,6 +30,7 @@ export function MyBestsPage() {
           <div><span>TRACK</span><strong>{track?.name ?? run.trackId}</strong></div>
           <div><span>CAR</span><strong>{car?.name ?? run.carId}</strong></div>
           <div className="my-best-time"><span>BEST TIME</span><strong><Medal size={17} />{run.verifiedFinishTime.toFixed(2)}s</strong></div>
+          {run.outdated && <p className="my-best-outdated">Set under older race rules and no longer ranked. Finish a new run on this track and car to replace it.</p>}
         </article>;
       })}</div>}
   </section>;

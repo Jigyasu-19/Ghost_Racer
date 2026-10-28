@@ -22,7 +22,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/sign-in" element={<SignInPage />} />
             <Route path="/register" element={<RegisterPage />} />
-          <Route element={<ProtectedRoute />}><Route path="/leaderboard" element={<LeaderboardPage />} /><Route path="/my-bests" element={<MyBestsPage />} /><Route path="/race" element={<RacePage />} /><Route path="/tournaments" element={<TournamentLobbyPage />} /><Route path="/tournaments/:tournamentId/podium" element={<TournamentPodiumPage />} /><Route path="/admin/tournaments" element={<TournamentAdminPage />} /></Route>
+          <Route element={<ProtectedRoute />}><Route path="/leaderboard" element={<LeaderboardPage />} /><Route path="/my-bests" element={<MyBestsPage />} /><Route path="/race" element={<RacePage />} /><Route path="/tournaments" element={<TournamentLobbyPage />} /><Route path="/tournaments/:tournamentId/podium" element={<TournamentPodiumPage />} /><Route path="/tournaments/host" element={<TournamentAdminPage />} /><Route path="/admin/tournaments" element={<TournamentAdminPage />} /></Route>
           </Routes>
         </main>
       </div></AuthProvider>

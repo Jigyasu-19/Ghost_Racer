@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { CARS, TRACKS } from '@ghost-racer/content';
-import { CreatedTournamentSchema, type CreatedTournament, type TournamentAdminHistory } from '@ghost-racer/contracts';
+import { CreatedTournamentSchema, type CreatedTournament, type TournamentHostHistory } from '@ghost-racer/contracts';
 import { useAuth } from '../auth/AuthContext';
-import { getAdminTournamentHistory } from '../api/tournaments';
+import { getTournamentHostHistory } from '../api/tournaments';
 import './TournamentAdminPage.css';
 
 export function TournamentAdminPage() {
   const { user } = useAuth();
   const [trackId, setTrackId] = useState<string>(TRACKS[0].id);
-  const [history, setHistory] = useState<TournamentAdminHistory | null>(null);
+  const [history, setHistory] = useState<TournamentHostHistory | null>(null);
   const [created, setCreated] = useState<CreatedTournament | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -17,7 +17,7 @@ export function TournamentAdminPage() {
 
   const refreshHistory = useCallback(async () => {
     try {
-      setHistory(await getAdminTournamentHistory());
+      setHistory(await getTournamentHostHistory());
       setError('');
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Could not load tournaments.');
@@ -26,7 +26,7 @@ export function TournamentAdminPage() {
     }
   }, []);
 
-  useEffect(() => { if (user?.role === 'admin') void refreshHistory(); else setLoading(false); }, [refreshHistory, user?.role]);
+  useEffect(() => { if (user) void refreshHistory(); else setLoading(false); }, [refreshHistory, user]);
 
   async function createTournament(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -54,12 +54,10 @@ export function TournamentAdminPage() {
     }
   }
 
-  if (user?.role !== 'admin') return <section className="tournament-admin-page"><h1>Administrator access required</h1></section>;
-
   const lobbyUrl = created ? `${window.location.origin}/tournaments?code=${encodeURIComponent(created.joinCode)}` : '';
 
   return <section className="tournament-admin-page">
-    <header className="tournament-admin-heading"><p className="eyebrow">ADMINISTRATION</p><h1>Tournament Management</h1><p>Create a private lobby and review its active or completed races.</p></header>
+    <header className="tournament-admin-heading"><p className="eyebrow">TOURNAMENT HOSTING</p><h1>Host tournaments</h1><p>Create a private lobby and review your active or completed races.</p></header>
     <form className="tournament-admin-create" onSubmit={(event) => void createTournament(event)}>
       <div><h2>Create Tournament</h2><label htmlFor="admin-tournament-track">Track</label><select id="admin-tournament-track" value={trackId} onChange={(event) => setTrackId(event.target.value)}>{TRACKS.map((track) => <option key={track.id} value={track.id}>{track.name}</option>)}</select></div>
       <button className="btn btn-primary" type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create tournament'}</button>

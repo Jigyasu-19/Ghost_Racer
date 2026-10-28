@@ -4,7 +4,7 @@ import { CONTENT_VERSION, getCar, getTrack } from '@ghost-racer/content';
 import { CompressedReplaySchema, type RunReplayMetadata } from '@ghost-racer/contracts';
 import { SIMULATION_VERSION, createRaceState, step } from '@ghost-racer/game-core';
 import { HttpError } from '../http/errors.js';
-import { findBestRunById, findBestRunForUser, insertBestRunIfAbsent, isBestRunInTopTen, listBestRunsForUser, replaceBestRunIfFaster, type BestRunDocument } from '../persistence/run-repository.js';
+import { findBestRunById, findBestRunForUser, insertBestRunIfAbsent, isBestRunInTopTen, isOutdatedBestRun, listBestRunsForUser, replaceBestRunIfFaster, type BestRunDocument } from '../persistence/run-repository.js';
 import { replayStorage } from '../persistence/replay-storage.js';
 
 export interface SubmitRunResult {
@@ -19,10 +19,11 @@ export interface PersonalBestSummary {
   verifiedFinishTime: number;
   createdAt: string;
   updatedAt: string;
+  outdated: boolean;
 }
 
 function toPersonalBestSummary(run: BestRunDocument): PersonalBestSummary {
-  return { runId: run._id.toHexString(), trackId: run.trackId, carId: run.carId, verifiedFinishTime: run.verifiedFinishTime, createdAt: run.createdAt.toISOString(), updatedAt: run.updatedAt.toISOString() };
+  return { runId: run._id.toHexString(), trackId: run.trackId, carId: run.carId, verifiedFinishTime: run.verifiedFinishTime, createdAt: run.createdAt.toISOString(), updatedAt: run.updatedAt.toISOString(), outdated: isOutdatedBestRun(run) };
 }
 
 export async function getPersonalBests(userId: string): Promise<PersonalBestSummary[]> {

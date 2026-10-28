@@ -2,22 +2,25 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import Phaser from 'phaser';
 import { CARS, CONTENT_VERSION, TRACKS, TUTORIAL_TRACK_ID } from '@ghost-racer/content';
 import type { CompressedReplay } from '@ghost-racer/contracts';
-import { createRaceState, SIMULATION_VERSION, step, TICK_SECONDS, type RaceInput, type RaceState } from '@ghost-racer/game-core';
+import { createRaceState, RACE_COUNTDOWN_SECONDS, SIMULATION_VERSION, step, TICK_SECONDS, type RaceInput, type RaceState } from '@ghost-racer/game-core';
+import { CountdownOverlay, drawTrack, fitTrackCamera, playCheckpointEffect } from './track-renderer';
 
 export interface RaceHudState { tick: number; checkpointIndex: number; checkpointCount: number; raceComplete: boolean; timeout: boolean; velocity: number; offTrack: boolean; replayAvailable: boolean }
 export interface RaceCanvasHandle { playReplay: () => Promise<void>; getReplaySubmission: () => RunReplaySubmission | null }
 export interface RunReplaySubmission { compressedReplay: ArrayBuffer; trackId: string; carId: string; simulationVersion: string; contentVersion: string }
 export interface RaceGhostSelection { replay: CompressedReplay; appearance: 'personal' | 'public' }
 interface RaceCanvasProps { trackId: string; carId: string; onUpdate: (state: RaceHudState) => void; ghostSelection?: RaceGhostSelection | null }
-interface Palette { surface: number; border: number; cyan: number; lime: number; text: number; muted: number }
+interface Palette { base: number; surface: number; border: number; cyan: number; lime: number; text: number; muted: number }
 const cssColor = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 const colorNumber = (value: string) => Number.parseInt(value.replace('#', ''), 16);
-function readPalette(): Palette { return { surface: colorNumber(cssColor('--bg-surface', '#111119')), border: colorNumber(cssColor('--border-default', '#1e1e2e')), cyan: colorNumber(cssColor('--accent-primary', '#00e5ff')), lime: colorNumber(cssColor('--accent-lime', '#b2ff59')), text: colorNumber(cssColor('--text-primary', '#e8e8ec')), muted: colorNumber(cssColor('--text-muted', '#5c5c70')) }; }
+function readPalette(): Palette { return { base: colorNumber(cssColor('--bg-base', '#08080e')), surface: colorNumber(cssColor('--bg-surface', '#111119')), border: colorNumber(cssColor('--border-default', '#1e1e2e')), cyan: colorNumber(cssColor('--accent-primary', '#00e5ff')), lime: colorNumber(cssColor('--accent-lime', '#b2ff59')), text: colorNumber(cssColor('--text-primary', '#e8e8ec')), muted: colorNumber(cssColor('--text-muted', '#5c5c70')) }; }
 
 class SoloRaceScene extends Phaser.Scene {
   private state: RaceState;
   private previousPosition: { x: number; y: number };
   private accumulator = 0;
+  private countdownMs = RACE_COUNTDOWN_SECONDS * 1000;
+  private countdown?: CountdownOverlay;
   private carShape?: Phaser.GameObjects.Container;
   private ghostShape?: Phaser.GameObjects.Container;
   private trackGraphics?: Phaser.GameObjects.Graphics;
@@ -44,13 +47,14 @@ class SoloRaceScene extends Phaser.Scene {
     this.drawTrack();
     const body = this.add.rectangle(0, 0, 24, 42, this.palette.cyan).setStrokeStyle(2, this.palette.text);
     const nose = this.add.triangle(0, -24, 0, 0, 10, 12, -10, 12, this.palette.lime);
-    this.carShape = this.add.container(this.track.start.position.x, this.track.start.position.y, [body, nose]).setDepth(3);
+    this.carShape = this.add.container(this.track.start.position.x, this.track.start.position.y, [body, nose]).setDepth(3).setRotation(this.state.headingRadians + Math.PI / 2);
     const publicGhost = this.ghostSelection?.appearance === 'public';
     const ghostColor = publicGhost ? this.palette.muted : this.palette.cyan;
     const ghostNoseColor = publicGhost ? ghostColor : this.palette.lime;
     const ghostBody = this.add.rectangle(0, 0, 24, 42, ghostColor, .45).setStrokeStyle(2, publicGhost ? ghostColor : this.palette.text, .55);
     const ghostNose = this.add.triangle(0, -24, 0, 0, 10, 12, -10, 12, ghostNoseColor, .5);
     this.ghostShape = this.add.container(this.track.start.position.x, this.track.start.position.y, [ghostBody, ghostNose]).setDepth(2).setVisible(false);
+    this.countdown = new CountdownOverlay(this, this.track, this.palette.lime, this.palette.base);
     if (this.ghostSelection) this.startReplay(this.ghostSelection.replay);
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
     this.handleResize(this.scale.gameSize);
@@ -59,13 +63,22 @@ class SoloRaceScene extends Phaser.Scene {
 
   update(_time: number, deltaMs: number): void {
     if ((this.state.raceComplete || this.state.timeout) && !this.replayActive) return;
+    if (this.countdownMs > 0) {
+      this.countdownMs -= Math.min(deltaMs, 100);
+      if (this.countdownMs > 0) { this.countdown?.show(String(Math.ceil(this.countdownMs / 1000))); return; }
+      this.countdown?.finish();
+      this.accumulator = 0;
+      return;
+    }
     this.accumulator += Math.min(deltaMs, 100) / 1000;
     while (this.accumulator >= TICK_SECONDS) {
       if (!this.state.raceComplete && !this.state.timeout) {
         this.previousPosition = { ...this.state.position };
         const input = this.readInput();
         this.recordedInputs.push({ tick: this.state.tick + 1, input });
+        const checkpointBefore = this.state.checkpointIndex;
         this.state = step(this.state, input, this.track, this.car);
+        if (this.state.checkpointIndex > checkpointBefore) playCheckpointEffect(this, this.track.checkpoints[checkpointBefore]!, this.carShape, this.palette.lime);
         if (this.state.raceComplete || this.state.timeout) void this.compressReplay();
         this.emitHud();
       }
@@ -140,22 +153,11 @@ class SoloRaceScene extends Phaser.Scene {
   }
 
   private drawTrack(): void {
-    const graphics = this.trackGraphics!;
-    graphics.fillStyle(this.palette.surface, 1);
-    graphics.fillPoints(this.track.boundary.map((point) => new Phaser.Math.Vector2(point.x, point.y)), true);
-    graphics.lineStyle(12, this.palette.border, 1);
-    graphics.strokePoints(this.track.boundary.map((point) => new Phaser.Math.Vector2(point.x, point.y)), true);
-    graphics.lineStyle(2, this.palette.muted, .75);
-    for (const checkpoint of this.track.checkpoints) graphics.lineBetween(checkpoint.start.x, checkpoint.start.y, checkpoint.end.x, checkpoint.end.y);
-    graphics.lineStyle(8, this.palette.lime, 1);
-    graphics.lineBetween(this.track.finishLine.start.x, this.track.finishLine.start.y, this.track.finishLine.end.x, this.track.finishLine.end.y);
-    graphics.fillStyle(this.palette.muted, 1);
-    graphics.fillCircle(this.track.start.position.x, this.track.start.position.y, 7);
+    drawTrack(this.trackGraphics!, this.track, { road: this.palette.surface, infield: this.palette.base, border: this.palette.border, marker: this.palette.muted, finish: this.palette.lime });
   }
 
   private handleResize(gameSize: Phaser.Structs.Size): void {
-    const zoom = Math.min(gameSize.width / 1100, gameSize.height / 940);
-    this.cameras.main.setZoom(Math.max(zoom, .25)).centerOn(0, 0);
+    fitTrackCamera(this.cameras.main, gameSize, this.track);
   }
 
   private emitHud(): void { this.onUpdate({ tick: this.state.tick, checkpointIndex: this.state.checkpointIndex, checkpointCount: this.track.checkpoints.length, raceComplete: this.state.raceComplete, timeout: this.state.timeout, velocity: this.state.velocity, offTrack: this.state.offTrack, replayAvailable: this.replayAvailable }); }
