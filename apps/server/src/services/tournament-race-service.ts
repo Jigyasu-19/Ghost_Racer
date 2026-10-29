@@ -191,9 +191,10 @@ export function queueTournamentInput(lobbyId: string, userId: string, tick: numb
   const session = activeRaces.get(lobbyId);
   if (!session || session.finalizing) return false;
   const racer = session.racers.find((candidate) => candidate.userId === userId);
-  if (racer) racer.lastInputAt = performance.now();
-  if (!racer || racer.state.raceComplete || racer.state.timeout || tick <= session.tick || tick > session.tick + MAX_INPUT_LEAD_TICKS) return false;
-  if (!racer.inputs.has(tick)) racer.inputs.set(tick, input);
+  if (!racer || racer.state.raceComplete || racer.state.timeout) return false;
+  const inputTick = Math.max(tick, session.tick + 1);
+  if (inputTick > session.tick + MAX_INPUT_LEAD_TICKS) return false;
+  racer.lastInputAt = performance.now();
+  racer.inputs.set(inputTick, input);
   return true;
 }
-
