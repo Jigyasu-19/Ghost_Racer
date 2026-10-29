@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/socket.io/",
+      "destination": "https://ghost-racer.onrender.com/socket.io/"
+    },
+    {
       "source": "/socket.io",
       "destination": "https://ghost-racer.onrender.com/socket.io"
     },
