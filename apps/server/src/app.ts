@@ -8,11 +8,11 @@ import { isRedisConnected } from './persistence/redis.js';
 
 export function createApp(): Express {
   const app = express();
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '16kb' }));
 
   app.get('/health', async (_request: Request, response: Response) => {
-    const dbConnected = isMongoConnected();
-    const redisConnected = await isRedisConnected();
+    const [dbConnected, redisConnected] = await Promise.all([isMongoConnected(), isRedisConnected()]);
     const dependenciesConnected = dbConnected && redisConnected;
 
     response.status(dependenciesConnected ? 200 : 503).json({

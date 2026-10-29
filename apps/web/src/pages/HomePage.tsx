@@ -27,7 +27,7 @@ export function HomePage() {
 
       <div className="status-badge">
         <span className="status-dot" />
-        <span>Workspace ready — Units 2 & 3 complete</span>
+        <span>Your next lap starts here.</span>
       </div>
     </div>
   );

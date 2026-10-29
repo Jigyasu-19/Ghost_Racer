@@ -11,6 +11,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1159.0",
     "@ghost-racer/contracts": "*",
     "argon2": "^0.41.1",
     "dotenv": "^16.4.7",

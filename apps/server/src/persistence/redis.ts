@@ -7,6 +7,7 @@ let connectionStatus = false;
 const redisAddress = new URL(config.redisUrl);
 const redisPort = Number(redisAddress.port || (redisAddress.protocol === 'rediss:' ? 6380 : 6379));
 const redisDatabase = redisAddress.pathname.length > 1 ? Number(redisAddress.pathname.slice(1)) : 0;
+const RATE_LIMIT_SCRIPT = `local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; if count > tonumber(ARGV[2]) then return 'LIMITED' end; return 'ALLOWED'`;
 
 function encodeCommand(parts: readonly string[]): Buffer {
   const rows = [`*${parts.length}\r\n`];
@@ -148,6 +149,17 @@ export async function connectToRedis(): Promise<void> {
 export async function getRedisClient(): Promise<RedisStore> {
   if (!connectionStatus && !(await isRedisConnected())) throw new Error('Redis is not reachable.');
   return new RedisStore();
+}
+
+export async function consumeRateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
+  if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(windowSeconds) || windowSeconds < 1) {
+    throw new Error('Rate-limit thresholds must be positive integers.');
+  }
+  const redis = await getRedisClient();
+  const result = await redis.eval(RATE_LIMIT_SCRIPT, [key], [String(windowSeconds), String(limit)]);
+  if (result === 'ALLOWED') return true;
+  if (result === 'LIMITED') return false;
+  throw new Error('Redis returned an invalid rate-limit result.');
 }
 
 export async function closeRedisConnection(): Promise<void> {

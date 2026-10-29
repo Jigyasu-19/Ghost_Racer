@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/socket.io",
+      "destination": "https://ghost-racer.onrender.com/socket.io"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "https://ghost-racer.onrender.com/socket.io/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://ghost-racer.onrender.com/api/:path*"
     },

@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { CreateTournamentRequestSchema } from '@ghost-racer/contracts';
 import { getAuthenticatedUser } from '../services/auth-service.js';
 import { createTournament, getTournamentHostHistory, getTournamentResult, getTournamentStatus } from '../services/tournament-service.js';
+import { consumeRateLimit } from '../persistence/redis.js';
 import { readCookie, requireCsrfToken } from './csrf.js';
 import { HttpError, sendError } from './errors.js';
 
@@ -19,6 +20,18 @@ tournamentsRouter.post('/', requireCsrfToken, async (request, response, next) =>
     const parsed = CreateTournamentRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       sendError(response, 400, 'VALIDATION_ERROR', 'A valid tournament track is required.');
+      return;
+    }
+    let allowed: boolean;
+    try {
+      allowed = await consumeRateLimit(`rate-limit:tournament:create:user:${user.id}`, 5, 60 * 60);
+    } catch (error: unknown) {
+      console.error('Tournament creation rate-limit check failed.', error);
+      throw new HttpError(503, 'RATE_LIMIT_UNAVAILABLE', 'This service is temporarily unavailable.');
+    }
+    if (!allowed) {
+      response.setHeader('Retry-After', String(60 * 60));
+      sendError(response, 429, 'RATE_LIMITED', 'You have created too many tournaments. Please try again later.');
       return;
     }
     const tournament = await createTournament(user.id, user.username, parsed.data.trackId);

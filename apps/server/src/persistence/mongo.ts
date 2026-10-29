@@ -13,14 +13,25 @@ export async function connectToMongo(): Promise<Db> {
     serverSelectionTimeoutMS: 5_000,
   });
 
-  await newClient.connect();
+  try {
+    await newClient.connect();
+  } catch (error: unknown) {
+    await newClient.close();
+    throw error;
+  }
   client = newClient;
   database = newClient.db();
   return database;
 }
 
-export function isMongoConnected(): boolean {
-  return database !== undefined;
+export async function isMongoConnected(): Promise<boolean> {
+  if (database === undefined) return false;
+  try {
+    await database.command({ ping: 1 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function closeMongoConnection(): Promise<void> {

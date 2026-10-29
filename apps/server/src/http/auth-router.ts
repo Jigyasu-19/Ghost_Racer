@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { completeUserTutorial, getAuthenticatedUser, loginAccount, registerAccount, revokeSession } from '../services/auth-service.js';
 import { issueCsrfToken, readCookie, requireCsrfToken } from './csrf.js';
 import { HttpError, sendError } from './errors.js';
+import { rateLimitByIp } from './rate-limit.js';
 
 const SESSION_COOKIE_NAME = 'ghost_racer_session';
 const SESSION_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -14,7 +15,7 @@ authRouter.get('/csrf', (_request, response) => {
   response.json({ csrfToken: issueCsrfToken(response) });
 });
 
-authRouter.post('/register', requireCsrfToken, async (request, response, next) => {
+authRouter.post('/register', requireCsrfToken, rateLimitByIp('auth:register', 5, 60 * 60), async (request, response, next) => {
   const parsed = RegisterRequestSchema.safeParse(request.body);
   if (!parsed.success) {
     sendError(response, 400, 'VALIDATION_ERROR', 'Invalid registration request.');
@@ -30,7 +31,7 @@ authRouter.post('/register', requireCsrfToken, async (request, response, next) =
   }
 });
 
-authRouter.post('/login', requireCsrfToken, async (request, response, next) => {
+authRouter.post('/login', requireCsrfToken, rateLimitByIp('auth:login', 10, 15 * 60), async (request, response, next) => {
   const parsed = LoginRequestSchema.safeParse(request.body);
   if (!parsed.success) {
     sendError(response, 400, 'VALIDATION_ERROR', 'Invalid sign-in request.');

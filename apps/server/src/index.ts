@@ -20,6 +20,7 @@ const io = new SocketServer(server, { allowRequest: (request, callback) => {
     if (origin !== undefined && host !== undefined) {
       const originUrl = new URL(origin);
       sameOrigin = originUrl.host === host;
+      if (!sameOrigin && config.webOrigins.includes(originUrl.origin)) sameOrigin = true;
       if (!sameOrigin && config.nodeEnv !== 'production') {
         const isLoopback = ['localhost', '127.0.0.1'].includes(originUrl.hostname) && ['localhost', '127.0.0.1'].includes(new URL(`http://${host}`).hostname);
         sameOrigin = isLoopback && originUrl.port === new URL(`http://${host}`).port;
@@ -29,24 +30,28 @@ const io = new SocketServer(server, { allowRequest: (request, callback) => {
   callback(null, origin === undefined || sameOrigin);
 } });
 attachLobbySockets(io);
-server.listen(config.port, () => {
-  console.info(`Ghost Racer API listening on http://localhost:${config.port}`);
-});
 
-void connectToMongo()
-  .then(async () => {
-    await ensureAuthenticationIndexes();
-    await ensureBestRunIndexes();
-    startCleanupWorker();
-    console.info('MongoDB connection ready.');
-  })
-  .catch((error: unknown) => {
-    console.error('MongoDB connection failed.', error);
+async function startServer(): Promise<void> {
+  await connectToMongo();
+  await ensureAuthenticationIndexes();
+  await ensureBestRunIndexes();
+  startCleanupWorker();
+  console.info('MongoDB connection and indexes ready.');
+  server.listen(config.port, () => {
+    console.info(`Ghost Racer API listening on http://localhost:${config.port}`);
   });
+  void connectToRedis()
+    .then(() => console.info('Redis connection ready.'))
+    .catch((error: unknown) => console.error('Redis connection failed.', error));
+}
 
-void connectToRedis()
-  .then(() => console.info('Redis connection ready.'))
-  .catch((error: unknown) => console.error('Redis connection failed.', error));
+void startServer().catch((error: unknown) => {
+  console.error('Server startup failed; HTTP requests will not be accepted.', error);
+  stopCleanupWorker();
+  void Promise.allSettled([closeMongoConnection(), closeRedisConnection()]).then(() => {
+    process.exitCode = 1;
+  });
+});
 
 function shutdown(signal: string): void {
   console.info(`${signal} received; shutting down.`);

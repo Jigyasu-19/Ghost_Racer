@@ -12,6 +12,7 @@
     }
   },
   "scripts": {
+    "verify": "tsx src/verify.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
